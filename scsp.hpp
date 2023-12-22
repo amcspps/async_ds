@@ -5,10 +5,22 @@
 class IntQueue {
 public:
     IntQueue() {
-        pthread_mutex_init(&read_mutex_, nullptr);
-        pthread_mutex_init(&write_mutex_, nullptr);
-        pthread_cond_init(&not_empty_, nullptr);
-        pthread_cond_init(&not_full_, nullptr);
+        if (pthread_mutex_init(&read_mutex_, nullptr) != 0) {
+            std::cerr << "Error initializing read mutex." << std::endl;
+            // TODO: handle error
+        }
+        if (pthread_mutex_init(&write_mutex_, nullptr) != 0) {
+            std::cerr << "Error initializing write mutex." << std::endl;
+            pthread_mutex_destroy(&read_mutex_);
+            // TODO: handle error
+
+        }
+        if (pthread_cond_init(&not_empty_, nullptr) != 0 || pthread_cond_init(&not_full_, nullptr) != 0) {
+            std::cerr << "Error initializing condition variables." << std::endl;
+            pthread_mutex_destroy(&read_mutex_);
+            pthread_mutex_destroy(&write_mutex_);
+            // TODO: handle error
+        }
     }
 
     ~IntQueue() {
@@ -18,16 +30,23 @@ public:
         pthread_cond_destroy(&not_full_);
     }
 
-    void enqueue(int value) {
+    int enqueue(int value) {
         pthread_mutex_lock(&write_mutex_);
 
         while (queue_.size() == MAX_QUEUE_SIZE) {
             pthread_cond_wait(&not_full_, &write_mutex_);
         }
 
-        queue_.push_back(value);
-        pthread_cond_signal(&not_empty_);
-        pthread_mutex_unlock(&write_mutex_);
+        if (queue_.size() < MAX_QUEUE_SIZE) {
+            queue_.push_back(value);
+            pthread_cond_signal(&not_empty_);
+            pthread_mutex_unlock(&write_mutex_);
+            return 0; // success
+        } else {
+            std::cerr << "Error: Queue is full." << std::endl;
+            pthread_mutex_unlock(&write_mutex_);
+            return -1; // failure
+        }
     }
 
     int dequeue() {
@@ -37,12 +56,17 @@ public:
             pthread_cond_wait(&not_empty_, &read_mutex_);
         }
 
-        int value = queue_.front();
-        queue_.pop_front();
-        pthread_cond_signal(&not_full_);
-        pthread_mutex_unlock(&read_mutex_);
-
-        return value;
+        if (!queue_.empty()) {
+            int value = queue_.front();
+            queue_.pop_front();
+            pthread_cond_signal(&not_full_);
+            pthread_mutex_unlock(&read_mutex_);
+            return value; // success
+        } else {
+            std::cerr << "Error: Queue is empty." << std::endl;
+            pthread_mutex_unlock(&read_mutex_);
+            return -1; // failure
+        }
     }
 
 private:
