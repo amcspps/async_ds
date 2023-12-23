@@ -1,3 +1,0 @@
-/home/pavel/dev/async_ds/build/CMakeFiles/queue.dir
-/home/pavel/dev/async_ds/build/CMakeFiles/edit_cache.dir
-/home/pavel/dev/async_ds/build/CMakeFiles/rebuild_cache.dir

@@ -1,7 +1,9 @@
 #include <iostream>
 #include <list>
 #include <pthread.h>
-
+#include <chrono>
+#ifndef SCSP_HPP
+#define SCSP_HPP
 class IntQueue {
 public:
     IntQueue() {
@@ -68,6 +70,12 @@ public:
             return -1; // failure
         }
     }
+    bool is_empty()  {
+        pthread_mutex_lock(&read_mutex_);
+        bool empty = queue_.empty();
+        pthread_mutex_unlock(&read_mutex_);
+        return empty;
+    }
 
 private:
     std::list<int> queue_;
@@ -75,19 +83,6 @@ private:
     pthread_mutex_t write_mutex_;
     pthread_cond_t not_empty_;
     pthread_cond_t not_full_;
-    static const size_t MAX_QUEUE_SIZE = 10;
+    static const size_t MAX_QUEUE_SIZE = 20;
 };
-
-void writerThread(IntQueue &queue) {
-    for (int i = 0; i < 20; ++i) {
-        queue.enqueue(i);
-        std::cout << "Enqueued: " << i << std::endl;
-    }
-}
-
-void readerThread(IntQueue &queue) {
-    for (int i = 0; i < 20; ++i) {
-        int value = queue.dequeue();
-        std::cout << "Dequeued: " << value << std::endl;
-    }
-}
+#endif
