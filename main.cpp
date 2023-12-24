@@ -3,6 +3,8 @@
 
 auto main(int argc, char** argv) -> int {
     IntQueue queue;
-    WriterTests::writer_test(queue, 2, 25);
+    WriterTests::writer_test(queue, 2, 10);
+    Utils::clear(queue);
+    ReaderTests::reader_test(queue, 2, 10);
     return 0;
 }

@@ -1,24 +1,24 @@
 #include <iostream>
 #include <list>
 #include <pthread.h>
-#include <chrono>
+#include <ctime>
 #ifndef SCSP_HPP
 #define SCSP_HPP
 class IntQueue {
 public:
     IntQueue() {
         if (pthread_mutex_init(&read_mutex_, nullptr) != 0) {
-            std::cerr << "Error initializing read mutex." << std::endl;
+            std::cerr << "error initializing read mutex." << std::endl;
             // TODO: handle error
         }
         if (pthread_mutex_init(&write_mutex_, nullptr) != 0) {
-            std::cerr << "Error initializing write mutex." << std::endl;
+            std::cerr << "error initializing write mutex." << std::endl;
             pthread_mutex_destroy(&read_mutex_);
             // TODO: handle error
 
         }
         if (pthread_cond_init(&not_empty_, nullptr) != 0 || pthread_cond_init(&not_full_, nullptr) != 0) {
-            std::cerr << "Error initializing condition variables." << std::endl;
+            std::cerr << "error initializing condition variables." << std::endl;
             pthread_mutex_destroy(&read_mutex_);
             pthread_mutex_destroy(&write_mutex_);
             // TODO: handle error
@@ -35,8 +35,18 @@ public:
     int enqueue(int value) {
         pthread_mutex_lock(&write_mutex_);
 
+        struct timespec ts;
+        clock_gettime(CLOCK_REALTIME, &ts);
+        ts.tv_sec += timeout_s;
+        ts.tv_nsec = 0;
+
         while (queue_.size() == MAX_QUEUE_SIZE) {
-            pthread_cond_wait(&not_full_, &write_mutex_);
+            if (pthread_cond_timedwait(&not_full_, &write_mutex_, &ts) != 0) {
+                // timeout occurred
+                std::cerr << "insertion timeout" << std::endl;
+                pthread_mutex_unlock(&write_mutex_);
+                return -1; // failure
+            }
         }
 
         if (queue_.size() < MAX_QUEUE_SIZE) {
@@ -45,7 +55,7 @@ public:
             pthread_mutex_unlock(&write_mutex_);
             return 0; // success
         } else {
-            std::cerr << "Error: Queue is full." << std::endl;
+            std::cerr << "error: queue is full." << std::endl;
             pthread_mutex_unlock(&write_mutex_);
             return -1; // failure
         }
@@ -54,8 +64,18 @@ public:
     int dequeue() {
         pthread_mutex_lock(&read_mutex_);
 
+        struct timespec ts;
+        clock_gettime(CLOCK_REALTIME, &ts);
+        ts.tv_sec += timeout_s;
+        ts.tv_nsec = 0;
+
         while (queue_.empty()) {
-            pthread_cond_wait(&not_empty_, &read_mutex_);
+            if (pthread_cond_timedwait(&not_full_, &write_mutex_, &ts) != 0) {
+                // timeout occurred
+                std::cerr << "reading timeout (empty)" << std::endl;
+                pthread_mutex_unlock(&write_mutex_);
+                return -1; // failure
+            }
         }
 
         if (!queue_.empty()) {
@@ -65,7 +85,7 @@ public:
             pthread_mutex_unlock(&read_mutex_);
             return value; // success
         } else {
-            std::cerr << "Error: Queue is empty." << std::endl;
+            std::cerr << "error: queue is empty." << std::endl;
             pthread_mutex_unlock(&read_mutex_);
             return -1; // failure
         }
@@ -84,5 +104,6 @@ private:
     pthread_cond_t not_empty_;
     pthread_cond_t not_full_;
     static const size_t MAX_QUEUE_SIZE = 20;
+    int timeout_s = 1;
 };
 #endif
