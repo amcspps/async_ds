@@ -9,19 +9,16 @@ public:
     IntQueue() {
         if (pthread_mutex_init(&read_mutex_, nullptr) != 0) {
             std::cerr << "error initializing read mutex." << std::endl;
-            // TODO: handle error
         }
         if (pthread_mutex_init(&write_mutex_, nullptr) != 0) {
             std::cerr << "error initializing write mutex." << std::endl;
             pthread_mutex_destroy(&read_mutex_);
-            // TODO: handle error
 
         }
         if (pthread_cond_init(&not_empty_, nullptr) != 0 || pthread_cond_init(&not_full_, nullptr) != 0) {
             std::cerr << "error initializing condition variables." << std::endl;
             pthread_mutex_destroy(&read_mutex_);
             pthread_mutex_destroy(&write_mutex_);
-            // TODO: handle error
         }
     }
 
