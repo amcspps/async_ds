@@ -96,14 +96,16 @@ public:
         pthread_mutex_unlock(&read_mutex_);
         return empty;
     }
-
+    int get_size() const {
+        return MAX_QUEUE_SIZE;
+    }
 private:
     std::list<int> queue_;
     pthread_mutex_t read_mutex_;
     pthread_mutex_t write_mutex_;
     pthread_cond_t not_empty_;
     pthread_cond_t not_full_;
-    static const size_t MAX_QUEUE_SIZE = 20;
+    static const size_t MAX_QUEUE_SIZE = 30;
     int timeout_s = 1;
 };
 #endif

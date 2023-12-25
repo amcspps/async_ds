@@ -6,5 +6,7 @@ auto main(int argc, char** argv) -> int {
     WriterTests::writer_test(queue, 2, 10);
     Utils::clear(queue);
     ReaderTests::reader_test(queue, 2, 10);
+    Utils::clear(queue);
+    CommonTests::common_test(queue);
     return 0;
 }

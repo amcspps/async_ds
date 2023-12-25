@@ -1,6 +1,6 @@
 #include "tests.hpp"
 #include <algorithm>
-
+#include <atomic>
 
 std::ostream& operator<<(std::ostream& os, const std::vector<int>& vec) {
     os << "[ ";
@@ -18,11 +18,12 @@ void Utils::remove_duplicates(std::vector<int>& vec) {
     vec.erase(last, vec.end());    
 }
 
-void Utils::fill(IntQueue& queue, std::vector<int>& reference) {
-    for (auto el: reference) {
-        queue.enqueue(el);
-        queue.enqueue(el);
-    }
+void Utils::fill(IntQueue& queue, std::vector<int>& reference, int threads_num) {
+    for (int i = 0; i < threads_num; ++i) {
+        for (auto el: reference) {
+            queue.enqueue(el);
+        }
+    }   
 }
 
 void Utils::compare(std::vector<int>& reference, std::vector<int>& output) {
@@ -40,8 +41,8 @@ void Utils::compare(std::vector<int>& reference, std::vector<int>& output) {
 }
 
 
-void Utils::fill(std::vector<int>& reference) {
-    for (int i = 0; i < 10; i++) {
+void Utils::fill(std::vector<int>& reference, int count) {
+    for (int i = 0; i < count; i++) {
         reference.push_back(i);
     }
     std:: cout << "the reference is: ";
@@ -123,8 +124,8 @@ void* ReaderTests::reader_thread(void* args) {
 
 void ReaderTests::reader_test(IntQueue &queue, int num_readers, int values_per_reader) {
     std::vector<int> reference;
-    Utils::fill(reference);
-    Utils::fill(queue, reference);
+    Utils::fill(reference, values_per_reader);
+    Utils::fill(queue, reference, num_readers);
 
     std::vector<pthread_t> reader_threads;
     std::vector<ReaderArgs> thread_args_list;
@@ -151,4 +152,55 @@ void ReaderTests::reader_test(IntQueue &queue, int num_readers, int values_per_r
     std::cout << output << std::endl;
     Utils::compare(reference, output);
 
+}
+
+
+
+
+void* CommonTests::reader_thread(void* args) {
+    
+    CommonArgs* thread_args = reinterpret_cast<CommonArgs*>(args);
+    IntQueue& queue = *(thread_args->queue);
+    int n = thread_args->n;
+    auto ver_arr = thread_args->verification_array;
+
+    for (int i = 0; i < n; ++i) {
+        int value = queue.dequeue();
+        (ver_arr->data()[value])++;
+    }
+    return nullptr;
+}
+ 
+void* CommonTests::writer_thread(void* args) {
+    CommonArgs* thread_args = reinterpret_cast<CommonArgs*>(args);
+    IntQueue& queue = *(thread_args->queue);
+    int n = thread_args->n;
+    auto ver_arr = thread_args->verification_array;
+
+    for (int i = 0; i < n; ++i) {
+        queue.enqueue(i);
+    }
+    return nullptr;
+}
+
+
+
+void CommonTests::common_test(IntQueue &queue) {
+    const int n = queue.get_size();
+    auto verification_array = std::make_shared<std::vector<int>>(n, 0);
+    pthread_t reader, writer;
+    CommonArgs thread_args {&queue, n, verification_array};
+
+    pthread_create(&writer, nullptr, reinterpret_cast<void*(*)(void*)>(&writer_thread), &thread_args);
+    pthread_create(&reader, nullptr, reinterpret_cast<void*(*)(void*)>(&reader_thread), &thread_args);
+
+    pthread_join(writer, nullptr);
+    pthread_join(reader, nullptr);
+
+    for (int i = 0; i < n; ++i) {
+        if (verification_array->data()[i] != 1) {
+            std::cout << "verification failed for element: " << i << std::endl;
+        }
+    }
+    std::cout << "verification passed!" << std::endl;
 }
