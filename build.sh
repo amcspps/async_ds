@@ -11,4 +11,5 @@ if [[ $? -eq 0 ]]
 then
 	make
 fi
-#rm -rf ../build
+mv queue ..
+rm -rf ../build
